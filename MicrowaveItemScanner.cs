@@ -1,0 +1,8 @@
+﻿
+namespace PopcornTest
+{
+     class MicrowaveItemScanner
+     {
+
+     }
+}
