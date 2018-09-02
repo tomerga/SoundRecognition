@@ -1,10 +1,12 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using ProtoBuf;
 
-namespace PopcornTest
+namespace SoundRecognition
 {
-     public static class PrototypeMachine
+     public static class SerializationMachine
      {
           public static T DeepClone<T>(this T i_ToClone) where T : class
           {
@@ -30,12 +32,16 @@ namespace PopcornTest
                               Serializer.Serialize(stream, record);
                          }
                     }
-                    catch (System.Exception e)
+                    catch (Exception e)
                     {
-                         System.Console.WriteLine("Some error occured using ProtoSerialize");
-                         System.Console.WriteLine(e.Message);
+                         Console.WriteLine($"Some error occured using ProtoSerialize: {e.Message}");
                     }
                }
+          }
+
+          public static void ProtoSerialize<T>(T record, string filePath) where T : class
+          {
+               ProtoSerialize(record, FilePath.CreateFilePath(filePath));
           }
 
           public static T ProtoDeserialize<T>(FilePath filePath) where T : class
@@ -49,12 +55,32 @@ namespace PopcornTest
                          objectToReturn = Serializer.Deserialize<T>(stream);
                     }
                }
-               catch
+               catch (Exception e)
                {
-                    System.Console.WriteLine("Some error occured using ProtoDeserialize");
+                    Console.WriteLine($"Some error occured using ProtoDeserialize: {e.Message}");
                }
 
                return objectToReturn;
+          }
+
+          public static void Serialize<T>(T item, string filePath) where T : class
+          {
+               Serialize(item, filePath, FileMode.Append);
+          }
+
+          public static void Serialize<T>(T item, string filePath, FileMode fileMode) where T : class
+          {
+               IFormatter formatter = new BinaryFormatter();
+               using (Stream stream = new FileStream(filePath, fileMode, FileAccess.Write, FileShare.None))
+               {
+                    formatter.Serialize(stream, item);
+               }
+          }
+
+          public static object Deserialize(Stream stream)
+          {
+               IFormatter formatter = new BinaryFormatter();
+               return formatter.Deserialize(stream);
           }
      }
 }

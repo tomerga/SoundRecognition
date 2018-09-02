@@ -2,15 +2,15 @@
 using System.IO;
 using System.Text;
 
-namespace PopcornTest
+namespace SoundRecognition
 {
      class WavFile : IAudioFile
      {
-          private readonly string mRiffStr = "RIFF"; // ChunkID.
-          private readonly string mWaveStr = "WAVE"; // Format.
-          private readonly string mFmtStr = "fmt "; // SubChunk1ID.
-          private readonly string mDataStr = "data"; // SubChunk2ID.
-          private readonly string mWavFileSuffix = ".wav";
+          private readonly string RIFF_STR = "RIFF"; // ChunkID.
+          private readonly string WAVE_STR = "WAVE"; // Format.
+          private readonly string FMT_STR = "fmt "; // SubChunk1ID.
+          private readonly string DATA_STR = "data"; // SubChunk2ID.
+          public static readonly string WavFileExtension = ".wav";
 
           /// <summary>
           /// Size of the waveFile minus 8 (int bytes).
@@ -69,14 +69,14 @@ namespace PopcornTest
                byte[] fmtSubChunkBytes = new byte[riffChunkSize];
                stream.Read(fmtSubChunkBytes, 0, riffChunkSize);
 
-               CheckExcpectedBytes(fmtSubChunkBytes.SubArray(0, 4, false), mRiffStr);
+               CheckExcpectedBytes(fmtSubChunkBytes.SubArray(0, 4, false), RIFF_STR);
 
                // Must change the reading order for little endien bytes.
                mChunkSize = (int)BitConvertorWrapper.ConvertByteArrayToInt(
                    fmtSubChunkBytes.SubArray<byte>(4, sizeof(int), true),
                    BitConvertorWrapper.IntType.Int32);
 
-               CheckExcpectedBytes(fmtSubChunkBytes.SubArray(8, 4, false), mWaveStr);
+               CheckExcpectedBytes(fmtSubChunkBytes.SubArray(8, 4, false), WAVE_STR);
           }
 
           private void CheckCalculateableVariables(int byteRate, short bytesPerSample)
@@ -107,7 +107,7 @@ namespace PopcornTest
 
                int indexReader = 0;
 
-               CheckExcpectedBytes(fmtSubChunkBytes.SubArray(indexReader, 4, false), mFmtStr);
+               CheckExcpectedBytes(fmtSubChunkBytes.SubArray(indexReader, 4, false), FMT_STR);
 
                indexReader += 4;
                mSubChunk1Size = (int)BitConvertorWrapper.ConvertByteArrayToInt(
@@ -184,10 +184,10 @@ namespace PopcornTest
                stream.Read(dataSubChunkBytes, 0, dataSubChunkBytes.Length);
 
                int? offsetInArr = GetStringOffset(dataSubChunkBytes,
-                   Encoding.UTF8.GetBytes(mDataStr));
+                   Encoding.UTF8.GetBytes(DATA_STR));
                if (!offsetInArr.HasValue)
                {
-                    throw new InvalidDataException($"{mDataStr} was not found");
+                    throw new InvalidDataException($"{DATA_STR} was not found");
                }
 
                DataSizeInBytes = (int)BitConvertorWrapper.ConvertByteArrayToInt(
@@ -206,12 +206,12 @@ namespace PopcornTest
           private void WriteWaveFileHeader(Stream savedStream, int soundDataSizeInBytes)
           {
                // Writes "RIFF" chunk descriptor.
-               StreamOperations.WriteStringToStream(savedStream, mRiffStr);
+               StreamOperations.WriteStringToStream(savedStream, RIFF_STR);
                StreamOperations.WriteIntegerToStream(savedStream, soundDataSizeInBytes + 36, BitConvertorWrapper.IntType.Int32);
-               StreamOperations.WriteStringToStream(savedStream, mWaveStr);
+               StreamOperations.WriteStringToStream(savedStream, WAVE_STR);
 
                // Write "fmt" sub-chunk.
-               StreamOperations.WriteStringToStream(savedStream, mFmtStr);
+               StreamOperations.WriteStringToStream(savedStream, FMT_STR);
                StreamOperations.WriteIntegerToStream(savedStream, 16, BitConvertorWrapper.IntType.Int32);
                StreamOperations.WriteIntegerToStream(savedStream, mAudioFormat, BitConvertorWrapper.IntType.Int16);
                StreamOperations.WriteIntegerToStream(savedStream, NumChannels, BitConvertorWrapper.IntType.Int16);
@@ -221,7 +221,7 @@ namespace PopcornTest
                StreamOperations.WriteIntegerToStream(savedStream, BitsPerSample, BitConvertorWrapper.IntType.Int16);
 
                // Write "data" sub-chunk.
-               StreamOperations.WriteStringToStream(savedStream, mDataStr);
+               StreamOperations.WriteStringToStream(savedStream, DATA_STR);
                StreamOperations.WriteIntegerToStream(savedStream, soundDataSizeInBytes, BitConvertorWrapper.IntType.Int32);
           }
 
@@ -288,7 +288,7 @@ namespace PopcornTest
                     }
 
                     FilePath splittedWaveFilePath = FilePath.CreateFilePathWithPrefix(
-                        splittedWaveFilesDirectory.FileFullPath, splitNum.ToString(), $"split{mWavFileSuffix}");
+                        splittedWaveFilesDirectory.FileFullPath, splitNum.ToString(), $"split{WavFileExtension}");
                     using (Stream outputSteam = new FileStream(
                         splittedWaveFilePath.FileFullPath, FileMode.Create, FileAccess.Write))
                     {

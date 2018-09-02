@@ -2,16 +2,17 @@
 using System.Diagnostics;
 using System.Threading;
 
-namespace PopcornTest
+namespace SoundRecognition
 {
      class MicrowaveMachine
      {
+          private static readonly int MS_IN_ONE_SECOND = 1000;
+          public static readonly int MaximalWorkingTimeInMS = 360 * MS_IN_ONE_SECOND; // 6 minutes.
+
           private IRecognizerMachine mPopsRecognizer;
           private IScanner mScanner = new ItemScanner();
-          private static readonly int mMSInOneSecond = 1000;
-          private static readonly int mMaximalWorkingTimeInMS = 360 * mMSInOneSecond; // 6 minutes.
 
-          private MicrowaveItemInfo mMicrowaveItemInfo = MicrowaveItemInfo.MicrowaveItemsDictionary["1"]; // TODO start as null.
+          private MicrowaveItemInfo mMicrowaveItemInfo = null;
           public MachineStatus Status { get; private set; }
 
           internal enum MachineStatus
@@ -22,11 +23,60 @@ namespace PopcornTest
                OnAndShouldStop = 4
           }
 
+          public void Run()
+          {
+               while (Status != MachineStatus.TurnedOff)
+               {
+                    ShowManu();
+
+                    string userInput = Console.ReadLine();
+                    switch (userInput.ToLowerInvariant())
+                    {
+                         case "scan":
+                         case "1":
+                              ScanItem();
+                              break;
+                         case "start":
+                         case "2":
+                              StartWorking();
+                              break;
+                         case "turn off":
+                         case "exit":
+                              TurnOff();
+                              break;
+                    }
+               }
+          }
+
+          public void TurnOn()
+          {
+               Status = MachineStatus.OnAndNotWorking;
+
+               mPopsRecognizer = new PopsRecognizer();
+               (mPopsRecognizer as PopsRecognizer).RecognizerFinished += SetShouldStopStatus;
+
+               SoundFingerprintingWrapper.Initialize();
+               mPopsRecognizer.LoadProcessedData();
+
+               (mScanner as ItemScanner).Initialize();
+
+               Console.WriteLine("Recognizer machine turned on");
+          }
+
+          public void TurnOff()
+          {
+               if (Status != MachineStatus.TurnedOff)
+               {
+                    Status = MachineStatus.TurnedOff;
+                    Console.WriteLine("Recognizer machine turned off");
+               }
+          }
+
           private void ShowManu()
           {
                Console.WriteLine(@"Choose an option:
-1. Scan item
-2. Start microwave");
+1. Scan Item
+2. Start Microwave");
           }
 
           private void ScanItem()
@@ -34,16 +84,16 @@ namespace PopcornTest
                mMicrowaveItemInfo = mScanner.Scan() as MicrowaveItemInfo;
           }
 
-          private void SetShouldStopStatus()
-          {
-               Status = MachineStatus.OnAndShouldStop;
-               Console.WriteLine("Recognizer machine should stop");
-          }
-
           private void SetShouldStopStatus(object sender, RecognizerFinishedEventArgs e)
           {
                SetShouldStopStatus();
                Console.WriteLine(e.data);
+          }
+
+          private void SetShouldStopStatus()
+          {
+               Status = MachineStatus.OnAndShouldStop;
+               Console.WriteLine("Recognizer machine should stop");
           }
 
           private void StopMachine()
@@ -58,28 +108,21 @@ namespace PopcornTest
                Status = MachineStatus.OnAndWorking;
                Console.WriteLine("Recognizer machine started");
 
-               if (mMicrowaveItemInfo == null)
-               {
-                    StopMachine();
-                    return;
-               }
-
                int maxHeatingTimeAllowedInMS = Math.Min(
-                   mMicrowaveItemInfo.HittingTimeInSeconds * mMSInOneSecond,
-                   mMaximalWorkingTimeInMS);
+                   mMicrowaveItemInfo.MaxHittingTimeInSeconds * MS_IN_ONE_SECOND,
+                   MaximalWorkingTimeInMS);
 
                Stopwatch stopwatch = new Stopwatch();
                stopwatch.Start();
                Console.WriteLine("Recognizer machine working..");
 
-               Thread popRecognizeThread = new Thread(() => mPopsRecognizer.Run(mMicrowaveItemInfo));
-               popRecognizeThread.Start();
+               new Thread(() => mPopsRecognizer.Run(mMicrowaveItemInfo)).Start();
 
                while (Status != MachineStatus.OnAndShouldStop)
                {
                     if (stopwatch.ElapsedMilliseconds >= maxHeatingTimeAllowedInMS)
                     {
-                         (mPopsRecognizer as PopsRecognizer).ShouldStop = true;
+                         (mPopsRecognizer as PopsRecognizer).Stop();
                          SetShouldStopStatus();
                          Console.WriteLine($"Recognizer machine should stop since reached maximal working time allowed {maxHeatingTimeAllowedInMS}");
                     }
@@ -87,48 +130,6 @@ namespace PopcornTest
 
                stopwatch.Stop();
                StopMachine();
-          }
-
-          public void Run()
-          {
-               while (Status != MachineStatus.TurnedOff)
-               {
-                    ShowManu();
-
-                    string userInput = Console.ReadLine();
-                    switch (userInput.ToLowerInvariant())
-                    {
-                         case "scan":
-                              ScanItem();
-                              break;
-                         case "start":
-                              StartWorking();
-                              break;
-                         case "turn off":
-                         case "exit":
-                              TurnOff();
-                              break;
-                    }
-               }
-          }
-
-          public void TurnOn()
-          {
-               Status = MachineStatus.OnAndNotWorking;
-               Console.WriteLine("Recognizer machine turned on");
-               mPopsRecognizer = new PopsRecognizer();
-               (mPopsRecognizer as PopsRecognizer).RecognizerFinished += SetShouldStopStatus;
-               SoundFingerprintingWrapper.Initialize();
-               mPopsRecognizer.LoadProcessedData();
-          }
-
-          public void TurnOff()
-          {
-               if (Status != MachineStatus.TurnedOff)
-               {
-                    Status = MachineStatus.TurnedOff;
-                    Console.WriteLine("Recognizer machine turned off");
-               }
           }
      }
 }

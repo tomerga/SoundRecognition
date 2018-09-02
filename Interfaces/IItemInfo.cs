@@ -1,5 +1,5 @@
 ﻿
-namespace PopcornTest
+namespace SoundRecognition
 {
      interface IItemInfo
      {

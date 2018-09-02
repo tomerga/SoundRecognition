@@ -1,12 +1,12 @@
 ﻿using System;
 using System.IO;
 
-namespace PopcornTest
+namespace SoundRecognition
 {
      // INFO: https://github.com/AddictedCS/soundfingerprinting
 
      // TODOs:
-     // TODO Write algorithem which identifies first pops and then start to think about the intervals.
+     // TODO more products - more recognize methods.
      // TODO investigate recording to computer + saving while recording (or somthing like that) and analyizing the saved data.
 
      // Less important.
@@ -15,6 +15,9 @@ namespace PopcornTest
      // TODO SoundFingerprintingWrapper will get not only wav files
 
      // DONE:
+     // TODO Write barcodes into file.
+     // TODO binary file for microwave items data base.
+     // TODO Write algorithem which identifies first pops and then start to think about the intervals.
      // MicrowaveItem type - according to tag (bar code), parameters of working time and safty accordingly. --> V
      // Start thinking about application run (safty and all that..). --> V
      // injection point to MicrowaveMachine - IRecognizer should be general. --> V
@@ -44,7 +47,6 @@ namespace PopcornTest
                MicrowaveMachine popcornMachine = new MicrowaveMachine();
                popcornMachine.TurnOn();
                popcornMachine.Run();
-               popcornMachine.TurnOff();
           }
 
           public static void UseWaveFile()

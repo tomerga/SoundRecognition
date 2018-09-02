@@ -79,7 +79,59 @@ Task("Publish")
         DotNetCorePublish(projectFile, settings);
     });
 
+Task("Deploy")
+    .IsDependentOn("Publish")
+    .Does(() =>
+    {
+        var files = GetFiles("./publish/*");
+        
+        if(runtime.StartsWith("win")) 
+        {
+            var destination = @"\\" + destinationIp + @"\" + destinationDirectory;
+            CopyFiles(files, destination, true);
+        }
+        else
+        {
+            var destination = destinationIp + ":" + destinationDirectory;
+            var fileArray = files.Select(m => @"""" + m.ToString() + @"""").ToArray();
+            Pscp(fileArray, destination, new PscpSettings
+                                                { 
+                                                    SshVersion = SshVersion.V2, 
+                                                    User = username 
+                                                }
+            );
+
+            var plinkCommand = "chmod u+x,o+x " + destinationDirectory + "/" + executableName;
+            Plink(username + "@" + destination, plinkCommand);
+        }
+    });
+
+Task("DeployWithPuTTYSession")
+    .IsDependentOn("Publish")
+    .Does(() =>
+    {
+        var files = GetFiles("./publish/*");
+        
+        var destination = sessionname + ":" + destinationDirectory;
+        var fileArray = files.Select(m => @"""" + m.ToString() + @"""").ToArray();
+        Pscp(fileArray, destination, new PscpSettings
+                                            { 
+                                                SshVersion = SshVersion.V2 
+                                            }
+        );
+
+        var plinkCommand = "chmod u+x,o+x " + destinationDirectory + "/" + executableName;
+
+        StartProcess("plink", new ProcessSettings {
+            Arguments = new ProcessArgumentBuilder()
+                .Append(@"-load")
+                .Append(sessionname)
+                .Append(plinkCommand)
+            }
+        );
+    });
+
 Task("Default")
-    .IsDependentOn("Publish");
+    .IsDependentOn("Deploy");
 
 RunTarget(target);

@@ -11,7 +11,7 @@ using SoundFingerprinting.Query;
 using SoundFingerprinting.DAO;
 using SoundFingerprinting.Data;
 
-namespace PopcornTest
+namespace SoundRecognition
 {
      static class SoundFingerprintingWrapper
      {
@@ -31,8 +31,8 @@ namespace PopcornTest
                    FilePath.CreateFilePath(Path.Combine(mDatabaseDirectoryName, $"{name}{mFingerPrintExtension}"));
                FilePath trackRefernceFilePath =
                    FilePath.CreateFilePath(Path.Combine(mDatabaseDirectoryName, $"{name}{mTrackReferenceExtension}"));
-               PrototypeMachine.ProtoSerialize(newHashedFingerprints, fingerPrintsDBFilePath);
-               PrototypeMachine.ProtoSerialize(trackReference, trackRefernceFilePath);
+               SerializationMachine.ProtoSerialize(newHashedFingerprints, fingerPrintsDBFilePath);
+               SerializationMachine.ProtoSerialize(trackReference, trackRefernceFilePath);
           }
 
           /// <summary>
@@ -66,14 +66,14 @@ namespace PopcornTest
                foreach (string fingerPrintFile in Directory.GetFiles(mDatabaseDirectoryName, $"*{mFingerPrintExtension}"))
                {
                     List<HashedFingerprint> hashedFingerprints =
-                        PrototypeMachine.ProtoDeserialize<List<HashedFingerprint>>(
+                        SerializationMachine.ProtoDeserialize<List<HashedFingerprint>>(
                             FilePath.CreateFilePath(fingerPrintFile));
 
                     string trackReferenceFile = fingerPrintFile.Replace(mFingerPrintExtension, mTrackReferenceExtension);
                     if (File.Exists(trackReferenceFile))
                     {
                          IModelReference trackReference =
-                             PrototypeMachine.ProtoDeserialize<IModelReference>(
+                             SerializationMachine.ProtoDeserialize<IModelReference>(
                                  FilePath.CreateFilePath(trackReferenceFile));
 
                          if (hashedFingerprints != null && trackReference != null)

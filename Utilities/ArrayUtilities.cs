@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace PopcornTest
+namespace SoundRecognition
 {
     public static class ArrayUtilities
     {

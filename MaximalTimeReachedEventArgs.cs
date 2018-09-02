@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace PopcornTest
+namespace SoundRecognition
 {
     class RecognizerFinishedEventArgs : EventArgs
     {

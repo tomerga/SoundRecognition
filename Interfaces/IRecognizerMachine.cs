@@ -1,5 +1,5 @@
 ﻿
-namespace PopcornTest
+namespace SoundRecognition
 {
      interface IRecognizerMachine
      {
@@ -8,7 +8,7 @@ namespace PopcornTest
           void Run(IItemInfo item);
      }
 
-     public enum RecognitionStatus
+     public enum eRecognitionStatus
      {
           Recognized = 0,
           UnRecognized = 0

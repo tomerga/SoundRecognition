@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.IO;
 
-namespace PopcornTest
+namespace SoundRecognition
 {
     public class ByteViewer
     {
