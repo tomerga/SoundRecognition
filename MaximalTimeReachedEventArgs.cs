@@ -4,6 +4,6 @@ namespace SoundRecognition
 {
     class RecognizerFinishedEventArgs : EventArgs
     {
-        public string data { get; set; }
+        public string Data { get; set; }
     }
 }

@@ -19,6 +19,15 @@ namespace SoundRecognition
                //ByteViewer.PrintBytes(intBytes, ByteViewer.PrintMode.HexMode);
           }
 
+          public static void CreateTextFile(string filePath, string textToWrite)
+          {
+               using (Stream stream = new FileStream(filePath, FileMode.Create))
+               {
+                    byte[] stringBytes = new UTF8Encoding(true).GetBytes(textToWrite);
+                    stream.Write(stringBytes, 0, stringBytes.Length);
+               }
+          }
+
           public static void WriteBytesToStream(Stream stream, byte[] data)
           {
                stream.Write(data, 0, data.Length);

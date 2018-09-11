@@ -1,11 +1,12 @@
-﻿
+﻿using System;
+
 namespace SoundRecognition
 {
      interface IRecognizerMachine
      {
-          void LoadProcessedData();
-          void ProcessNewData();
-          void Run(IItemInfo item);
+          event EventHandler<RecognizerFinishedEventArgs> RecognizerFinished;
+          void LoadProcessedData(string itemCategory);
+          void ProcessNewData(IItemInfo item);
      }
 
      public enum eRecognitionStatus

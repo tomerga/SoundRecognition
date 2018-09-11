@@ -4,12 +4,12 @@ using System.Threading;
 
 namespace SoundRecognition
 {
-     class MicrowaveMachine
+     internal class MicrowaveMachine
      {
           private static readonly int MS_IN_ONE_SECOND = 1000;
           public static readonly int MaximalWorkingTimeInMS = 360 * MS_IN_ONE_SECOND; // 6 minutes.
 
-          private IRecognizerMachine mPopsRecognizer;
+          private IRecognizerMachine mRecognizer;
           private IScanner mScanner = new ItemScanner();
 
           private MicrowaveItemInfo mMicrowaveItemInfo = null;
@@ -51,14 +51,8 @@ namespace SoundRecognition
           public void TurnOn()
           {
                Status = MachineStatus.OnAndNotWorking;
-
-               mPopsRecognizer = new PopsRecognizer();
-               (mPopsRecognizer as PopsRecognizer).RecognizerFinished += SetShouldStopStatus;
-
                SoundFingerprintingWrapper.Initialize();
-               mPopsRecognizer.LoadProcessedData();
-
-               (mScanner as ItemScanner).Initialize();
+               mScanner.Initialize();
 
                Console.WriteLine("Recognizer machine turned on");
           }
@@ -82,18 +76,28 @@ namespace SoundRecognition
           private void ScanItem()
           {
                mMicrowaveItemInfo = mScanner.Scan() as MicrowaveItemInfo;
+               if(mMicrowaveItemInfo != null)
+               {
+                    mRecognizer = MachineRecognizerFactory.CreateRecognizer(
+                         (mScanner as ItemScanner).ItemToRecognizerTypeMap.
+                         GetRecognizerTypeByItem(mMicrowaveItemInfo),
+                         10,
+                         10);
+
+                    if(mRecognizer != null)
+                    {
+                         mRecognizer.RecognizerFinished += SetShouldStopStatus;
+                         string itemCategory = (mScanner as ItemScanner).
+                              ItemToRecognizerTypeMap.GetRecognizerTypeByItem(mMicrowaveItemInfo);
+                         mRecognizer.LoadProcessedData(itemCategory);
+                    }
+               }
           }
 
-          private void SetShouldStopStatus(object sender, RecognizerFinishedEventArgs e)
-          {
-               SetShouldStopStatus();
-               Console.WriteLine(e.data);
-          }
-
-          private void SetShouldStopStatus()
+          private void SetShouldStopStatus(object sender, RecognizerFinishedEventArgs eventArgs)
           {
                Status = MachineStatus.OnAndShouldStop;
-               Console.WriteLine("Recognizer machine should stop");
+               Console.WriteLine(eventArgs.Data);
           }
 
           private void StopMachine()
@@ -105,31 +109,38 @@ namespace SoundRecognition
 
           private void StartWorking()
           {
-               Status = MachineStatus.OnAndWorking;
-               Console.WriteLine("Recognizer machine started");
-
-               int maxHeatingTimeAllowedInMS = Math.Min(
-                   mMicrowaveItemInfo.MaxHittingTimeInSeconds * MS_IN_ONE_SECOND,
-                   MaximalWorkingTimeInMS);
-
-               Stopwatch stopwatch = new Stopwatch();
-               stopwatch.Start();
-               Console.WriteLine("Recognizer machine working..");
-
-               new Thread(() => mPopsRecognizer.Run(mMicrowaveItemInfo)).Start();
-
-               while (Status != MachineStatus.OnAndShouldStop)
+               if (mMicrowaveItemInfo != null)
                {
-                    if (stopwatch.ElapsedMilliseconds >= maxHeatingTimeAllowedInMS)
-                    {
-                         (mPopsRecognizer as PopsRecognizer).Stop();
-                         SetShouldStopStatus();
-                         Console.WriteLine($"Recognizer machine should stop since reached maximal working time allowed {maxHeatingTimeAllowedInMS}");
-                    }
-               }
+                    Status = MachineStatus.OnAndWorking;
+                    Console.WriteLine("Recognizer machine started");
 
-               stopwatch.Stop();
-               StopMachine();
+                    int maxHeatingTimeAllowedInMS = Math.Min(
+                        mMicrowaveItemInfo.MaxHittingTimeInSeconds * MS_IN_ONE_SECOND,
+                        MaximalWorkingTimeInMS);
+
+                    Stopwatch stopwatch = new Stopwatch();
+                    stopwatch.Start();
+                    Console.WriteLine("Recognizer machine working...");
+
+                    new Thread(() => mRecognizer.ProcessNewData(mMicrowaveItemInfo)).Start();
+
+                    while (Status != MachineStatus.OnAndShouldStop)
+                    {
+                         if (stopwatch.ElapsedMilliseconds >= maxHeatingTimeAllowedInMS)
+                         {
+                              (mRecognizer as PopsRecognizer).Stop();
+                              SetShouldStopStatus(this, new RecognizerFinishedEventArgs { Data = "Recognizer machine should stop" });
+                              Console.WriteLine($"Recognizer machine should stop since reached maximal working time allowed {maxHeatingTimeAllowedInMS}");
+                         }
+                    }
+
+                    stopwatch.Stop();
+                    StopMachine();
+               }
+               else
+               {
+                    Console.WriteLine("Item is unknown, machine will not start");
+               }
           }
      }
 }

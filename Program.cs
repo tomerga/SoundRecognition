@@ -5,8 +5,14 @@ namespace SoundRecognition
 {
      // INFO: https://github.com/AddictedCS/soundfingerprinting
 
+     // Test:
+     // Test popRecognizer.
+     // Test specificSoundsRecognizer.
+     // Test directory listener.
+     // Test maximal Microwave time (set it to 30 seconds.. see if everything is OK when record is aborted).
+
      // TODOs:
-     // TODO more products - more recognize methods.
+     // Fix saving and loading fingerprints.
      // TODO investigate recording to computer + saving while recording (or somthing like that) and analyizing the saved data.
 
      // Less important.
@@ -15,35 +21,23 @@ namespace SoundRecognition
      // TODO SoundFingerprintingWrapper will get not only wav files
 
      // DONE:
-     // TODO Write barcodes into file.
-     // TODO binary file for microwave items data base.
-     // TODO Write algorithem which identifies first pops and then start to think about the intervals.
-     // MicrowaveItem type - according to tag (bar code), parameters of working time and safty accordingly. --> V
-     // Start thinking about application run (safty and all that..). --> V
-     // injection point to MicrowaveMachine - IRecognizer should be general. --> V
-     // Load fingerprints data on application startup. --> V
-     // cut from wav files the start - where there is no pops of popcorn. --> V
-     // amplification. --> V
-     // more popcorn sounds - to add to database. --> V
+     // More products <=> more recognize methods.
+     // Save DBs.
+     // Write barcodes into file.
+     // binary file for microwave items data base.
+     // Write algorithem which identifies first pops and then start to think about the intervals.
+     // MicrowaveItem type - according to tag (bar code), parameters of working time and safty accordingly.
+     // Start thinking about application run (safty and all that..).
+     // injection point to MicrowaveMachine - IRecognizer should be general.
+     // Load fingerprints data on application startup.
+     // Cut from wav files the start - where there is no pops of popcorn.
+     // Amplification.
+     // More popcorn sounds - to add to database.
 
      class Program
      {
           static void Main(string[] args)
           {
-               //RecordTest();
-               //return;
-
-               //SoundFingerprintingWrapper.Initialize();
-
-               //foreach (string wavFile in Directory.GetFileSystemEntries(
-               //     @"C:\Users\Dor Shaar\Desktop\Media - Backup",
-               //     $"*{WavFile.Extension}",
-               //     SearchOption.AllDirectories))
-               //{
-               //     SoundFingerprintingWrapper.StoreNewAudioFileData(new WavFile(wavFile));
-               //}
-               //return;
-
                MicrowaveMachine popcornMachine = new MicrowaveMachine();
                popcornMachine.TurnOn();
                popcornMachine.Run();

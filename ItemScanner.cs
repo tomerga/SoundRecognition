@@ -4,8 +4,9 @@ using System.IO;
 
 namespace SoundRecognition
 {
-     class ItemScanner : IScanner
+     internal class ItemScanner : IScanner, IDatabaseHolder
      {
+          private readonly string DATABASE_DIRECTORY_NAME = "Database";
           private readonly string ITEMS_DATA_BASE_NAME = "ItemsDB.bin";
           private readonly string BARCODE_DIRECTORY_NAME = "Barcodes";
           private readonly string CREATE_NEW_QR_BARCODE_EXE_NAME = "CreateQRBarcode.sh";
@@ -14,35 +15,39 @@ namespace SoundRecognition
           private readonly string PNG_EXTENSION = ".png";
           private readonly string TXT_EXTENSION = ".txt";
 
-          private Dictionary<string, MicrowaveItemInfo> mMicrowaveItemsDictionary =
-               new Dictionary<string, MicrowaveItemInfo>
-          {
-            //{"TelmushPopcornXYZ", new MicrowaveItemInfo("TelmushPopcornXYZ", 300, "Telmush Popcorn")},
-            //{"NestlushPopcornABC", new MicrowaveItemInfo("NestlushPopcornABC", 280, "Nestlush Popcorn")},
-            //{"Metildazzz", new MicrowaveItemInfo("Metildazzz", 190, "Matilda's Home Made Popcorn")}
-          };
+          private Dictionary<string, IItemInfo> mMicrowaveItemsDictionary =
+               new Dictionary<string, IItemInfo>
+               {
+                    //{"TelmushPopcornXYZ", new MicrowaveItemInfo("TelmushPopcornXYZ", 300, "Telmush Popcorn")},
+                    //{"NestlushPopcornABC", new MicrowaveItemInfo("NestlushPopcornABC", 280, "Nestlush Popcorn")},
+                    //{"Metildazzz", new MicrowaveItemInfo("Metildazzz", 190, "Matilda's Home Made Popcorn")}
+               };
+
+          private ItemToCategoryMap mItemToCategoryMap = new ItemToCategoryMap();
+          public ItemToRecognizerTypeMap ItemToRecognizerTypeMap = new ItemToRecognizerTypeMap();
 
           public void Initialize()
           {
-               using (Stream stream = new FileStream(ITEMS_DATA_BASE_NAME, FileMode.Open, FileAccess.Read, FileShare.None))
-               {
-                    string sizeAsString = (string)SerializationMachine.Deserialize(stream);
-                    int dictionarySize = int.Parse(sizeAsString);
-                    for (int i = 0; i < dictionarySize; ++i)
-                    {
-                         MicrowaveItemInfo itemInfo = 
-                              (MicrowaveItemInfo)SerializationMachine.Deserialize(stream);
-                         mMicrowaveItemsDictionary.Add(itemInfo.Barcode, itemInfo);
-                    }
-               }
+               LoadDatabase();
+          }
 
-               Console.WriteLine("Database loaded");
+          public void LoadDatabase()
+          {
+               string itemsDatabasePath = Path.Combine(DATABASE_DIRECTORY_NAME, ITEMS_DATA_BASE_NAME);
+               mMicrowaveItemsDictionary = SerializationMachine.LoadDictionaryFromDB<string, IItemInfo>(itemsDatabasePath);
+               mItemToCategoryMap.LoadDatabase();
+               ItemToRecognizerTypeMap.LoadDatabase();
+          }
+
+          public void SaveDatabase()
+          {
+               string itemsDatabasePath = Path.Combine(DATABASE_DIRECTORY_NAME, ITEMS_DATA_BASE_NAME);
+               SerializationMachine.SaveDictionaryIntoDB(itemsDatabasePath, mMicrowaveItemsDictionary);
           }
 
           public IItemInfo Scan()
           {
-               MicrowaveItemInfo microwaveItem = MicrowaveItemInfo.DefaultMicrowaveItem;
-               string barcode = null;
+               IItemInfo microwaveItem = null;
 
                ShowScanManu();
                ShowBarcodesAvailable();
@@ -59,16 +64,8 @@ namespace SoundRecognition
                          microwaveItem = ScanExistingBarcode();
                          break;
                     case "exit":
+                    default:
                          break;
-               }
-
-               if (barcode == null)
-               {
-                    Console.WriteLine($"No barcode scanned");
-               }
-               else if (!mMicrowaveItemsDictionary.TryGetValue(barcode, out microwaveItem))
-               {
-                    Console.WriteLine($"{barcode} is not valid barcode");
                }
 
                return microwaveItem;
@@ -89,7 +86,7 @@ namespace SoundRecognition
           /// pixelSize,
           /// stringToEncode
           /// </summary>
-          private MicrowaveItemInfo CreateNewBarcode()
+          private IItemInfo CreateNewBarcode()
           {
                Directory.CreateDirectory(BARCODE_DIRECTORY_NAME);
                string imageDirectoryName = $"{Path.DirectorySeparatorChar}{BARCODE_DIRECTORY_NAME}";
@@ -118,41 +115,35 @@ namespace SoundRecognition
 
                ProcessExecutor.ExecuteProcess(CREATE_NEW_QR_BARCODE_EXE_NAME, argument);
 
-               MicrowaveItemInfo microwaveItemInfo = new MicrowaveItemInfo(
+               IItemInfo microwaveItemInfo = new MicrowaveItemInfo(
                     stringToEncode, maxHittingTimeInSeconds, productName);
                mMicrowaveItemsDictionary.Add(stringToEncode, microwaveItemInfo);
+               Console.WriteLine($"{microwaveItemInfo.ItemName} added to database");
 
-               Console.WriteLine($"{microwaveItemInfo.ProductName} added to data base");
+               mItemToCategoryMap.ClassifyItemToCategory(microwaveItemInfo);
+               ItemToRecognizerTypeMap.ClassifyItemToRecognitionType(microwaveItemInfo);
 
-               SaveMicrowaveItems();
+               SaveDatabase();
 
                return microwaveItemInfo;
-          }
-
-          /// <summary>
-          /// At first serializes the size of the dictionary and then its content.
-          /// </summary>
-          private void SaveMicrowaveItems()
-          {
-               SerializationMachine.Serialize(
-                    mMicrowaveItemsDictionary.Count.ToString(), ITEMS_DATA_BASE_NAME, FileMode.Create);
-
-               foreach (KeyValuePair<string, MicrowaveItemInfo> keyPairValue in mMicrowaveItemsDictionary)
-               {
-                    SerializationMachine.Serialize(keyPairValue.Value, ITEMS_DATA_BASE_NAME);
-               }
-
-               Console.WriteLine($"Data base saved to {ITEMS_DATA_BASE_NAME}");
           }
 
           private void ShowBarcodesAvailable()
           {
                if (Directory.Exists(BARCODE_DIRECTORY_NAME))
                {
-                    Console.WriteLine("Barcodes available:");
-                    foreach (string qrBarcodeImageName in Directory.GetFiles(BARCODE_DIRECTORY_NAME))
+                    string[] files = Directory.GetFiles(BARCODE_DIRECTORY_NAME);
+                    if (files.Length > 0)
                     {
-                         Console.WriteLine(qrBarcodeImageName);
+                         Console.WriteLine("Barcodes available:");
+                         foreach (string qrBarcodeImageName in files)
+                         {
+                              Console.WriteLine(qrBarcodeImageName);
+                         }
+                    }
+                    else
+                    {
+                         Console.WriteLine("no barcodes available");
                     }
                }
                else
@@ -168,9 +159,9 @@ namespace SoundRecognition
           /// After executing the script, reading the .txt file and extracts the [decoded string].
           /// </summary>
           /// <returns></returns>
-          private MicrowaveItemInfo ScanExistingBarcode()
+          private IItemInfo ScanExistingBarcode()
           {
-               MicrowaveItemInfo microwaveItem = null;
+               IItemInfo microwaveItem = null;
 
                Console.WriteLine("Type name of QR-Barcode image to scan");
                string barcodeImageName = Console.ReadLine();
@@ -183,13 +174,13 @@ namespace SoundRecognition
                string barcodeTextFilePath =
                     Path.Combine(imageDirectoryName, barcodeImageName.Replace(PNG_EXTENSION, TXT_EXTENSION));
 
-               if(File.Exists(barcodeTextFilePath))
+               if (File.Exists(barcodeTextFilePath))
                {
                     using (StreamReader streamReader = new StreamReader(barcodeTextFilePath))
                     {
                          string line = streamReader.ReadLine();
                          int indexToReadFrom = line.LastIndexOf(SUB_STRING_TO_SKIP);
-                         if(indexToReadFrom != -1)
+                         if (indexToReadFrom != -1)
                          {
                               indexToReadFrom += SUB_STRING_TO_SKIP.Length + 1;
                          }

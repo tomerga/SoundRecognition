@@ -15,81 +15,65 @@ namespace SoundRecognition
 {
      static class SoundFingerprintingWrapper
      {
-          private static string mFingerPrintExtension = ".fp";
-          private static string mTrackReferenceExtension = ".tr";
-          private static string mDatabaseDirectoryName = "Database";
+          private static readonly string DATABASE_DIRECTORY_NAME = "Database";
+          private static readonly string FINGEPRINT_EXTENSION = ".fp";
+          private static readonly string TRACK_REFERENCE_EXTENSION = ".tr";
 
           private static readonly IModelService mModelService = new InMemoryModelService(); // Stores fingerprints in RAM.
           private static readonly IAudioService mAudioService = new SoundFingerprintingAudioService(); // Default audio library.
 
-          private static void SaveFingerPrintsInMemory(
-              List<HashedFingerprint> newHashedFingerprints,
-              IModelReference trackReference,
-              string name)
-          {
-               FilePath fingerPrintsDBFilePath =
-                   FilePath.CreateFilePath(Path.Combine(mDatabaseDirectoryName, $"{name}{mFingerPrintExtension}"));
-               FilePath trackRefernceFilePath =
-                   FilePath.CreateFilePath(Path.Combine(mDatabaseDirectoryName, $"{name}{mTrackReferenceExtension}"));
-               SerializationMachine.ProtoSerialize(newHashedFingerprints, fingerPrintsDBFilePath);
-               SerializationMachine.ProtoSerialize(trackReference, trackRefernceFilePath);
-          }
-
-          /// <summary>
-          /// Uses HighPrecisionQueryConfiguration().
-          /// </summary>
-          /// <param name="queryAudioFile"></param>
-          /// <param name="secondsToAnalyze">Number of seconds to analyze from query file</param>
-          /// <param name="startAtSecond"></param>
-          /// <returns></returns>
-          private static ResultEntry GetBestMatchForSong(string queryAudioFile, double secondsToAnalyze, int startAtSecond)
-          {
-               // Query the underlying database for similar audio sub-fingerprints.
-               QueryResult queryResult = QueryCommandBuilder.Instance.BuildQueryCommand()
-                                                    .From(queryAudioFile, secondsToAnalyze, startAtSecond)
-                                                    .WithQueryConfig(new HighPrecisionQueryConfiguration())
-                                                    .UsingServices(mModelService, mAudioService)
-                                                    .Query()
-                                                    .Result;
-
-               return queryResult?.BestMatch;
-          }
-
           public static void Initialize()
           {
-               Directory.CreateDirectory(mDatabaseDirectoryName);
+               if (!Directory.Exists(DATABASE_DIRECTORY_NAME))
+               {
+                    Console.WriteLine($"Creating directory: {DATABASE_DIRECTORY_NAME}");
+                    Directory.CreateDirectory(DATABASE_DIRECTORY_NAME);
+               }
           }
 
-          public static void LoadFingerPrintsDataBase()
+          public static void LoadFingerPrintsDataBase(string databaseCategory)
           {
                // Search for all files with given extensios in given directory.
-               foreach (string fingerPrintFile in Directory.GetFiles(mDatabaseDirectoryName, $"*{mFingerPrintExtension}"))
+               string databaseDirectoryPath = Path.Combine(DATABASE_DIRECTORY_NAME, databaseCategory);
+               try
                {
-                    List<HashedFingerprint> hashedFingerprints =
-                        SerializationMachine.ProtoDeserialize<List<HashedFingerprint>>(
-                            FilePath.CreateFilePath(fingerPrintFile));
-
-                    string trackReferenceFile = fingerPrintFile.Replace(mFingerPrintExtension, mTrackReferenceExtension);
-                    if (File.Exists(trackReferenceFile))
+                    string[] files = Directory.GetFiles(databaseDirectoryPath, $"*{FINGEPRINT_EXTENSION}");
+                    foreach (string fingerPrintFile in files)
                     {
-                         IModelReference trackReference =
-                             SerializationMachine.ProtoDeserialize<IModelReference>(
-                                 FilePath.CreateFilePath(trackReferenceFile));
+                         List<HashedFingerprint> hashedFingerprints =
+                             SerializationMachine.ProtoDeserialize<List<HashedFingerprint>>(
+                                 FilePath.CreateFilePath(fingerPrintFile));
 
-                         if (hashedFingerprints != null && trackReference != null)
+                         string trackReferenceFile = fingerPrintFile.Replace(FINGEPRINT_EXTENSION, TRACK_REFERENCE_EXTENSION);
+                         if (File.Exists(trackReferenceFile))
                          {
-                              mModelService.InsertHashDataForTrack(hashedFingerprints, trackReference);
-                              Console.WriteLine($"Loaded fingerprint of track reference ID: {trackReference.Id}");
+                              IModelReference trackReference =
+                                  SerializationMachine.ProtoDeserialize<IModelReference>(
+                                      FilePath.CreateFilePath(trackReferenceFile));
+
+                              if (hashedFingerprints != null && trackReference != null)
+                              {
+                                   mModelService.InsertHashDataForTrack(hashedFingerprints, trackReference);
+                                   Console.WriteLine($"Loaded fingerprint of track reference ID: {trackReference.Id}");
+                              }
+                              else
+                              {
+                                   Console.WriteLine($"Cannot load fingerprint {fingerPrintFile}");
+                              }
                          }
                          else
                          {
-                              Console.WriteLine($"Cannot load fingerprint {fingerPrintFile}");
+                              Console.WriteLine($"Error! the track reference file of {fingerPrintFile} is missing");
                          }
                     }
-                    else
-                    {
-                         Console.WriteLine($"Error! the track reference file of {fingerPrintFile} is missing");
-                    }
+               }
+               catch (ArgumentException e)
+               {
+                    Console.WriteLine($"Argument Exception occures: {e.Message}");
+               }
+               catch (DirectoryNotFoundException)
+               {
+                    Console.WriteLine($"No such directory: {databaseDirectoryPath}");
                }
           }
 
@@ -158,6 +142,39 @@ Can be found at: {resultEntry.TrackMatchStartsAt} sec ({minute}:{second})
                }
 
                return isMatchFound;
+          }
+
+          private static void SaveFingerPrintsInMemory(
+              List<HashedFingerprint> newHashedFingerprints,
+              IModelReference trackReference,
+              string name)
+          {
+               FilePath fingerPrintsDBFilePath =
+                   FilePath.CreateFilePath(Path.Combine(DATABASE_DIRECTORY_NAME, $"{name}{FINGEPRINT_EXTENSION}"));
+               FilePath trackRefernceFilePath =
+                   FilePath.CreateFilePath(Path.Combine(DATABASE_DIRECTORY_NAME, $"{name}{TRACK_REFERENCE_EXTENSION}"));
+               SerializationMachine.ProtoSerialize(newHashedFingerprints, fingerPrintsDBFilePath);
+               SerializationMachine.ProtoSerialize(trackReference, trackRefernceFilePath);
+          }
+
+          /// <summary>
+          /// Uses HighPrecisionQueryConfiguration().
+          /// </summary>
+          /// <param name="queryAudioFile"></param>
+          /// <param name="secondsToAnalyze">Number of seconds to analyze from query file</param>
+          /// <param name="startAtSecond"></param>
+          /// <returns></returns>
+          private static ResultEntry GetBestMatchForSong(string queryAudioFile, double secondsToAnalyze, int startAtSecond)
+          {
+               // Query the underlying database for similar audio sub-fingerprints.
+               QueryResult queryResult = QueryCommandBuilder.Instance.BuildQueryCommand()
+                                                    .From(queryAudioFile, secondsToAnalyze, startAtSecond)
+                                                    .WithQueryConfig(new HighPrecisionQueryConfiguration())
+                                                    .UsingServices(mModelService, mAudioService)
+                                                    .Query()
+                                                    .Result;
+
+               return queryResult?.BestMatch;
           }
      }
 }
